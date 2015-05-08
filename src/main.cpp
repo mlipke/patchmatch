@@ -1,17 +1,21 @@
 #include <iostream>
 #include <opencv2/highgui/highgui.hpp>
-#include <opencv2/core/core.hpp>
 
 using namespace std;
 using namespace cv;
 
-Mat random_flow(Mat *image) {
-    Mat rf(image->cols, image->rows, CV_32SC2, Scalar(0,0));
+Mat random_flow(int width, int height) {
+    Mat rf(width, height, CV_32SC2, Scalar(0,0));
 
     for (int i = 0; i < rf.cols; i++) {
-        Vec2s *p = rf.ptr<Vec2s>(i);
+        Vec2i *p = rf.ptr<Vec2i>(i);
         for (int j = 0; j < rf.rows; j++) {
-            Vec2s c = p[j];
+            Vec2i c = p[j];
+
+            c[0] = rand() % width;
+            c[1] = rand() % height;
+
+            rf.at<Vec2i>(i, j) = c;
         }
     }
 
@@ -62,9 +66,9 @@ int main(int argc, const char ** argv) {
 
     int window_size = atoi(argv[1]);
 
-    int s = ssd(&image_one, &image_two, Point(0,0), Point(40,40), window_size);
+    Mat rf = random_flow(5, 5);
 
-    cout << "Sum: " << s << endl;
+    cout << "Random Flow: " << endl << rf << endl;
 
     return 0;
 }
