@@ -29,7 +29,8 @@ int ssd(Mat *image_one, Mat *image_two, Point c, Point offset, int window_size) 
         int x_one = c.x + i;
         int x_two = offset.x + i;
 
-        if (!(x_one > image_one->cols || x_two > image_two->cols)) {
+        if (!(x_one > image_one->cols || x_two > image_two->cols
+           || x_one < 0               || x_two < 0)) {
 
             uchar *p_one = image_one->ptr<uchar>(x_one);
             uchar *p_two = image_two->ptr<uchar>(x_two);
@@ -39,7 +40,8 @@ int ssd(Mat *image_one, Mat *image_two, Point c, Point offset, int window_size) 
                 int y_one = c.y + j;
                 int y_two = offset.y + j;
 
-                if (!(y_one > image_one->rows || y_two > image_two->rows)) {
+                if (!(y_one > image_one->rows || y_two > image_two->rows
+                   || y_one < 0 || y_two < 0)) {
                     diff = p_one[c.y + j] - p_two[offset.y + j];
                     sum += diff * diff;
 
