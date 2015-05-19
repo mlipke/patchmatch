@@ -10,7 +10,7 @@
 using namespace cv;
 
 Mat random_flow(int width, int height);
-Vec2i random_offset(Point p, int radius, int max_x, int max_y);
+Vec2i random_offset(int radius, int max_x, int max_y);
 bool boundaries(Point c, int max_x, int max_y);
 int min(int a, int b, int c);
 

@@ -153,7 +153,7 @@ void propagate(Mat *image_one, Mat *image_two, Mat *flow, int direction, int win
 }
 
 void random_search(Mat *image_one, Mat *image_two, Mat *flow, Point p, int window_size, int radius, int current_ssd) {
-    Vec2i r_offset = random_offset(p, radius, image_one->cols, image_one->rows);
+    Vec2i r_offset = random_offset(radius, image_one->cols, image_one->rows);
 
     int r_ssd = ssd(image_one, image_two, p, r_offset, window_size);
 
@@ -167,7 +167,7 @@ void random_search(Mat *image_one, Mat *image_two, Mat *flow, Point p, int windo
     }
 }
 
-Vec2i random_offset(Point p, int radius, int max_x, int max_y) {
+Vec2i random_offset(int radius, int max_x, int max_y) {
     int rand_x = rand() % radius - radius / 2;
     int rand_y = rand() % radius - radius / 2;
 
@@ -196,7 +196,7 @@ int min(int a, int b, int c) {
 void patchmatch(Mat *image_one, Mat *image_two, Mat *flow, int window_size, int iterations) {
     for (int i = 0; i < iterations; i++) {
         int direction;
-        if (i % 2 == 0) { direction = 0; } else { direction = 0; }
+        if (i % 2 == 0) { direction = 0; } else { direction = 1; }
 
         propagate(image_one, image_two, flow, direction, window_size);
 
@@ -209,15 +209,13 @@ void pyramid(Mat *image_one, Mat *image_two, int window_size) {
 }
 
 Mat warp_image(Mat *image, Mat *flow) {
-    Mat warped_image(image->rows, image->cols, CV_8UC3, Scalar(0));
+    Mat warped_image = Mat_<Vec3b>(image->rows, image->cols);
 
     for (int i = 0; i < image->rows; i++) {
         for (int j = 0; j < image->cols; j++) {
             Vec2i location = flow->at<Vec2i>(i, j);
-            if (location[0] + i < image->rows && location[1] + j) {
-                Vec3b value = image->at<Vec3b>(location[0] + i, location[1] + j);
-                warped_image.at<Vec3b>(i, j) = value;
-            }
+            Vec3b value = image->at<Vec3b>(location[1], location[0]);
+            warped_image.at<Vec3b>(i, j) = value;
         }
     }
 
@@ -227,26 +225,7 @@ Mat warp_image(Mat *image, Mat *flow) {
 void write_flow(Mat *flow) {
     ofstream flow_file;
     flow_file.open("flow.txt");
-    flow_file << "[";
-
-    for (int i = 0; i < flow->rows; i++) {
-        Vec2i *p = flow->ptr<Vec2i>(i);
-        int j = 0;
-        for (; j < flow->cols; j++) {
-            flow_file << p[j][0] << ", " << p[j][1];
-
-            if (j == flow->cols - 1) {
-                if (i == flow->rows - 1) {
-                    flow_file << "]" << endl;
-                } else {
-                    flow_file << "," << endl;
-                }
-            } else {
-                flow_file << ", ";
-            }
-        }
-    }
-
+    flow_file << *flow;
     flow_file.close();
 }
 
@@ -262,7 +241,7 @@ int main(int argc, const char ** argv) {
 
     //Mat rf = random_flow(image_one.cols, image_one.rows);
     Mat rf = random_pixel_flow(&image_one);
-    patchmatch(&image_one, &image_two, &rf, window_size, 4);
+    patchmatch(&image_one, &image_two, &rf, window_size, 5);
 
     imwrite("warped_image.png", warp_image(&image_one, &rf));
     write_flow(&rf);
