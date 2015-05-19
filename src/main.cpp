@@ -1,5 +1,7 @@
 #include <iostream>
+#include <fstream>
 #include <limits>
+#include <vector>
 #include <opencv2/highgui/highgui.hpp>
 
 #include "main.h"
@@ -19,6 +21,32 @@ Mat random_flow(int width, int height) {
             c[1] = (rand() % (height * 2)) - height;
 
             rf.at<Vec2i>(i, j) = c;
+        }
+    }
+
+    return rf;
+}
+
+Mat random_pixel_flow(Mat *image) {
+    Mat rf(image->rows, image->cols, CV_32SC2, Scalar(0,0));
+
+    vector<Point> pixels;
+
+    for (int i = 0; i < image->rows; i++) {
+        for (int j = 0; j < image->cols; j++) {
+            pixels.push_back(Point(i, j));
+        }
+    }
+
+    random_shuffle(pixels.begin(), pixels.end());
+
+    for (int i = 0; i < image->rows; i++) {
+        Vec2i *p = rf.ptr<Vec2i>(i);
+        for (int j = 0; j < image->cols; j++) {
+            Point rp = pixels.back();
+            pixels.pop_back();
+
+            p[j] = Vec2i(rp.x - i, rp.y - j);
         }
     }
 
@@ -119,7 +147,7 @@ void propagate(Mat *image_one, Mat *image_two, Mat *flow, int direction, int win
             if (ssd_min == ssd_two)
                 flow->at<Vec2i>(c) = n_two_offset;
 
-            //random_search(image_one, image_two, flow, c, window_size, 64, ssd_min);
+            random_search(image_one, image_two, flow, c, window_size, 128, ssd_min);
         }
     }
 }
@@ -156,7 +184,6 @@ bool boundaries(Point c, int max_x, int max_y) {
     return c.x < 0 || c.y < 0 || c.x > max_x || c.y > max_y;
 }
 
-
 int min(int a, int b, int c) {
     int s = a;
 
@@ -169,7 +196,7 @@ int min(int a, int b, int c) {
 void patchmatch(Mat *image_one, Mat *image_two, Mat *flow, int window_size, int iterations) {
     for (int i = 0; i < iterations; i++) {
         int direction;
-        if (i % 2 == 0) { direction = 0; } else { direction = 1; }
+        if (i % 2 == 0) { direction = 0; } else { direction = 0; }
 
         propagate(image_one, image_two, flow, direction, window_size);
 
@@ -187,15 +214,41 @@ Mat warp_image(Mat *image, Mat *flow) {
     for (int i = 0; i < image->rows; i++) {
         for (int j = 0; j < image->cols; j++) {
             Vec2i location = flow->at<Vec2i>(i, j);
-
-            Vec3b value = image->at<Vec3b>(i + location[1], j + location[0]);
-            warped_image.at<Vec3b>(i, j) = value;
+            if (location[0] + i < image->rows && location[1] + j) {
+                Vec3b value = image->at<Vec3b>(location[0] + i, location[1] + j);
+                warped_image.at<Vec3b>(i, j) = value;
+            }
         }
     }
 
     return warped_image;
 }
 
+void write_flow(Mat *flow) {
+    ofstream flow_file;
+    flow_file.open("flow.txt");
+    flow_file << "[";
+
+    for (int i = 0; i < flow->rows; i++) {
+        Vec2i *p = flow->ptr<Vec2i>(i);
+        int j = 0;
+        for (; j < flow->cols; j++) {
+            flow_file << p[j][0] << ", " << p[j][1];
+
+            if (j == flow->cols - 1) {
+                if (i == flow->rows - 1) {
+                    flow_file << "]" << endl;
+                } else {
+                    flow_file << "," << endl;
+                }
+            } else {
+                flow_file << ", ";
+            }
+        }
+    }
+
+    flow_file.close();
+}
 
 int main(int argc, const char ** argv) {
     if (argc < 2)
@@ -207,10 +260,12 @@ int main(int argc, const char ** argv) {
 
     int window_size = atoi(argv[1]);
 
-    Mat rf = random_flow(image_one.cols, image_one.rows);
-    patchmatch(&image_one, &image_two, &rf, window_size, 1);
+    //Mat rf = random_flow(image_one.cols, image_one.rows);
+    Mat rf = random_pixel_flow(&image_one);
+    patchmatch(&image_one, &image_two, &rf, window_size, 4);
 
     imwrite("warped_image.png", warp_image(&image_one, &rf));
+    write_flow(&rf);
 
     return 0;
 }
